@@ -6,9 +6,28 @@ import pickle as pk
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+import requests
+import json
+import time
 
 # Load the data, define test set and train set
-os.chdir("C:\\Users\\Utilisateur\\Desktop\\Crypto\\Data")
+#os.chdir("C:\\Users\\Utilisateur\\Desktop\\Crypto\\Data")
+
+now = time.time()
+_5year = 157784630
+_6year = 189341556
+now_5year = now - _5year
+now_6year = now - _6year
+
+url = "https://poloniex.com/public?command=returnChartData&currencyPair=USDT_BTC&start=" + str(now_6year) + "&end=" + str(now) + "&period=7200"
+
+resp = requests.get(url=url)
+data = resp.json()
+
+print(data)
+
+#df = pd.read_json(data)
+
 df = pd.read_csv('./Data/USDT_BTC_Poloniex_20022015_21122020_7200.csv')
 df["date"] = pd.to_datetime(df["date"])
 df = df.sort_values(by = 'date')
