@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import requests
 import json
 import time
+import csv
 
 # Load the data, define test set and train set
 #os.chdir("C:\\Users\\Utilisateur\\Desktop\\Crypto\\Data")
@@ -24,7 +25,15 @@ url = "https://poloniex.com/public?command=returnChartData&currencyPair=USDT_BTC
 resp = requests.get(url=url)
 data = resp.json()
 
-print(data)
+csv_path = 'USDT_BTC_Poloniex_20022015_21122020_7200.csv'
+with open(csv_path, 'w', newline='') as f:
+	dict_writer = csv.DictWriter(f, data[0].keys())
+	dict_writer.writeheader()
+	dict_writer.writerows(data)
+	print("CSV file saved at path {}".format(csv_path))
+
+
+# print(data)
 
 df = pd.DataFrame(data)
 
