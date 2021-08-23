@@ -26,9 +26,9 @@ data = resp.json()
 
 print(data)
 
-#df = pd.read_json(data)
+df = pd.DataFrame(data)
 
-df = pd.read_csv('./Data/USDT_BTC_Poloniex_20022015_21122020_7200.csv')
+# df = pd.read_csv('./Data/USDT_BTC_Poloniex_20022015_21122020_7200.csv')
 df["date"] = pd.to_datetime(df["date"])
 df = df.sort_values(by = 'date')
 
@@ -137,9 +137,10 @@ df.to_csv('./Data/DatasetWithVariablesAndY_stoploss{}_takeprofit{}.csv'.format(s
 
 #################### IV - Apply PCA and save results ##############################
 # First we define the trainset, validation set, testset. This is important in this step to avoid causality issues.
-trainset = df[df['date'] < start_validation]
-validation_set = df[(df['date'] >= start_validation) & (df['date'] < start_test)]
-testset = df[df['date'] > start_test]
+k = df.shape[0]
+trainset = df[:int(k*.5)] #df[df['date'] < start_validation]
+validation_set = df[int(k*.5):int(k*.75)] #df[(df['date'] >= start_validation) & (df['date'] < start_test)]
+testset = df[int(k*.75):] #df[df['date'] > start_test]
 
 trainset.to_csv('./Data/TrainSet_stoploss{}_takeprofit{}.csv'.format(stoploss, takeprofit), index = False)
 validation_set.to_csv('./Data/ValidationSet_stoploss{}_takeprofit{}.csv'.format(stoploss, takeprofit), index = False)
@@ -232,14 +233,26 @@ for nPCs in list_nPCs:
     #Fitting the data to the training dataset
     classifier.fit(X,y, batch_size=500, epochs=75, verbose =1)
 
-    pk.dump(classifier, open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit),"wb"))
-
+    # pk.dump(classifier, open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit),"wb"))
+    classifier.save_weights('./Models/DL_model_{}PC_stoploss{}_takeprofit{}.h5'.format(nPCs, stoploss, takeprofit))
 # (c) Test onto the testset : we compare all models and store results in a csv file
 accuracies, nPCs_list = [], []
 for nPCs in list_nPCs:
     print(nPCs)
-    with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
-        clf = pk.load(f)
+     # Build model and train it
+    clf = Sequential()
+    #First Hidden Layer
+    clf.add(Dense(32, activation='relu', kernel_initializer='random_normal', input_dim=nPCs))
+    #Second, third and fourth  hidden Layers
+    clf.add(Dense(32, activation='relu', kernel_initializer='random_normal'))
+    clf.add(Dense(16, activation='relu', kernel_initializer='random_normal'))
+    clf.add(Dense(16, activation='relu', kernel_initializer='random_normal'))
+
+    #Output Layer
+    clf.add(Dense(1, activation='sigmoid', kernel_initializer='random_normal'))
+    # with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
+    #     clf = pk.load(f)
+    clf.load_weights('./Models/DL_model_{}PC_stoploss{}_takeprofit{}.h5'.format(nPCs, stoploss, takeprofit))
     # Compute predictions on testset
     preds = (clf.predict(validation_set_final.iloc[:, :nPCs]) > 0.5)*1
 
@@ -251,9 +264,6 @@ for nPCs in list_nPCs:
 recap = pd.DataFrame({'nPCs' : list(nPCs_list), 'Accuracy' : (list(accuracies))})
 recap.to_csv('./Results/Comparative_All_models_stoploss{}_takeprofit{}.csv'.format(stoploss, takeprofit), index = False)
 print(recap)
-
-
-
 
 
 
@@ -329,8 +339,22 @@ def predict_and_backtest_bullish(df, df_final, model, stoploss, takeprofit, fees
 recap = pd.read_csv('./Results/Comparative_All_models_stoploss{}_takeprofit{}.csv'.format(stoploss, takeprofit)).sort_values('Accuracy', ascending = False)
 nPCs = recap['nPCs'].iloc[0]
 
-with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
-    clf = pk.load(f)
+# with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
+#     clf = pk.load(f)
+clf = Sequential()
+#First Hidden Layer
+clf.add(Dense(32, activation='relu', kernel_initializer='random_normal', input_dim=nPCs))
+#Second, third and fourth  hidden Layers
+clf.add(Dense(32, activation='relu', kernel_initializer='random_normal'))
+clf.add(Dense(16, activation='relu', kernel_initializer='random_normal'))
+clf.add(Dense(16, activation='relu', kernel_initializer='random_normal'))
+
+#Output Layer
+clf.add(Dense(1, activation='sigmoid', kernel_initializer='random_normal'))
+# with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
+#     clf = pk.load(f)
+clf.load_weights('./Models/DL_model_{}PC_stoploss{}_takeprofit{}.h5'.format(nPCs, stoploss, takeprofit))
+# Compute predictions on testset
 
 testset1 = predict_and_backtest_bullish(testset, testset_final, clf, stoploss, takeprofit, fees, plotting = True)
 
@@ -368,8 +392,22 @@ def table_recap(df, stoploss, takeprofit, nPCs, columnA = 'proba1', columnB = 'E
 # Load best model
 recap = pd.read_csv('./Results/Comparative_All_models_stoploss{}_takeprofit{}.csv'.format(stoploss, takeprofit)).sort_values('Accuracy', ascending = False)
 nPCs = recap['nPCs'].iloc[0]
-with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
-    clf = pk.load(f)
+# with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
+#     clf = pk.load(f)
+clf = Sequential()
+#First Hidden Layer
+clf.add(Dense(32, activation='relu', kernel_initializer='random_normal', input_dim=nPCs))
+#Second, third and fourth  hidden Layers
+clf.add(Dense(32, activation='relu', kernel_initializer='random_normal'))
+clf.add(Dense(16, activation='relu', kernel_initializer='random_normal'))
+clf.add(Dense(16, activation='relu', kernel_initializer='random_normal'))
+
+#Output Layer
+clf.add(Dense(1, activation='sigmoid', kernel_initializer='random_normal'))
+# with open("./Models/DL_model_{}PC_stoploss{}_takeprofit{}.pkl".format(nPCs, stoploss, takeprofit), 'rb') as f:
+#     clf = pk.load(f)
+clf.load_weights('./Models/DL_model_{}PC_stoploss{}_takeprofit{}.h5'.format(nPCs, stoploss, takeprofit))
+# Compute predictions on testset
 
 # Compute predictions on validation_set
 validation_set = predict_and_backtest_bullish(validation_set, validation_set_final, clf, stoploss, takeprofit, fees, plotting = False)
